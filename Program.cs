@@ -25,7 +25,7 @@ class MyPlayer : Player<MyPlayer>
     public void decreaseWeaponLevel() {
 
 
-        if (weaponLevel < 1) { weaponLevel -= 1; }
+        if (weaponLevel > 1) { weaponLevel -= 1; }
         
     }   
 }
