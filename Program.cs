@@ -16,10 +16,41 @@ class Program
 }
 class MyPlayer : Player<MyPlayer>
 {
-    public bool IsZombie;
+    public int weaponLevel = 1;
+
+    public void increaseWeaponLevel() {
+        weaponLevel += 1;
+    }
+
+    public void decreaseWeaponLevel() {
+
+
+        if (weaponLevel < 1) { weaponLevel -= 1; }
+        
+    }   
 }
 class MyGameServer : GameServer<MyPlayer>
 {
+
+/*TODO:
+ * Expand the datastructure to include information describing if the item is primary or secondary weapon
+ * This is needed to invoke either player.PrimaryWeapon or player.Secondaryweapn
+ */
+
+    //TODO: Make a sensible list of weapons
+    private static List<Weapon> progressionMap = new List<Weapon> { 
+    Weapons.MP7,
+    Weapons.AK15,
+    Weapons.P90,
+    Weapons.MP7,
+    Weapons.AK15,
+    Weapons.P90,
+    Weapons.MP7,
+    Weapons.AK15,
+    Weapons.P90,
+
+    };
+        
 
     public override async Task OnRoundStarted()
     {
@@ -30,73 +61,62 @@ class MyGameServer : GameServer<MyPlayer>
 
     public override async Task OnPlayerConnected(MyPlayer player)
     {
-        bool anyZombiePlayer = false;
-        foreach (var item in AllPlayers)
-        {
-            if (item.IsZombie)
-            {
-                anyZombiePlayer = true;
-                break;
-            }
-        }
 
-        if (!anyZombiePlayer)
-        {
-            player.IsZombie = true;
-            player.Message("You are the zombie.");
-            player.Kill();
-        }
+       /*
+        * TODO Implement some QoL logic so new players dont start at level 0, but maybe the average of the server
+        */
+
+ 
     }
 
     public override async Task OnAPlayerKilledAnotherPlayer(OnPlayerKillArguments<MyPlayer> args)
     {
-        if (args.Victim.IsZombie)
+
+        args.Killer.increaseWeaponLevel();
+
+        // If killed by melee weaon, decrease level of victim
+        if (args.KillerTool == Gadgets.Pickaxe.Name || args.KillerTool == Gadgets.PickaxeIronPickaxe.Name) 
         {
-            args.Victim.IsZombie = false;
-            args.Victim.Message("You are no longer zombie");
-
-            AnnounceShort("Choosing new zombie in 5");
-            await Task.Delay(1000);
-            AnnounceShort("Choosing new zombie in 4");
-            await Task.Delay(1000);
-            AnnounceShort("Choosing new zombie in 3");
-            await Task.Delay(1000);
-            AnnounceShort("Choosing new zombie in 2");
-            await Task.Delay(1000);
-            AnnounceShort("Choosing new zombie in 1");
-            await Task.Delay(1000);
-
-            args.Killer.IsZombie = true;
-            args.Killer.SetHeavyGadget(Gadgets.SledgeHammer.ToString(), 0, true);
-
-            var position = args.Killer.GetPosition();
+            args.Victim.decreaseWeaponLevel();
+            AnnounceLong("MELEEE KIIIIL");
         }
+
+
+        /*TODO
+       * Check a win condition, i.e. max level reached and end the round by changing map
+       * For now just print it 
+       * 
+       */
+        if(args.Killer.weaponLevel == progressionMap.Count) {
+            AnnounceLong("Winner, winner, chicken dinner");
+        }
+
+
+
     }
 
 
     public override async Task<OnPlayerSpawnArguments> OnPlayerSpawning(MyPlayer player, OnPlayerSpawnArguments request)
     {
-        if (player.IsZombie)
-        {
-            request.Loadout.PrimaryWeapon = default;
-            request.Loadout.SecondaryWeapon = default;
+
+        // Give the player the weapon they reached
+
+        request.Loadout.PrimaryWeapon.Tool = progressionMap[player.weaponLevel];
+
+
+        // TODO: Find out if Secondary weapon can be removed. If not, implement logic to ignore kills with this
+
+        request.Loadout.SecondaryWeapon = default; 
             request.Loadout.LightGadget = null;
             request.Loadout.HeavyGadget = Gadgets.SledgeHammer;
             request.Loadout.Throwable = null;
-        }
+        
 
         return request;
     }
     public override async Task OnPlayerSpawned(MyPlayer player)
     {
-        if(player.IsZombie)
-        {
-            player.SetRunningSpeedMultiplier(2f);
-            player.SetJumpMultiplier(2f);
-            player.SetFallDamageMultiplier(0f);
-            player.SetReceiveDamageMultiplier(0.1f);
-            player.SetGiveDamageMultiplier(4f);
-        }
+   
     }
 
 
